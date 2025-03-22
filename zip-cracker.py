@@ -1,10 +1,11 @@
 from argparse import ArgumentParser
 from pyzipper import AESZipFile, BadZipFile
-from os import path
+from os import path, cpu_count
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from rich.console import Console
 from rich.tree import Tree
+from time import sleep
 
 # Global flag to stop threads when interrupted
 stop_event = threading.Event()
@@ -106,11 +107,18 @@ def try_password(zip_file, password, verbose):
         raise  # Propagate the interrupt to allow a graceful exit
     return False
 
-def process_wordlist(zip_file, wordlist_path, verbose, max_threads=4):
+def process_wordlist(zip_file, wordlist_path, verbose, max_threads=None):
     """Process the wordlist using multithreading."""
     if not path.exists(wordlist_path):
         print(f"Error: '{wordlist_path}' not found.")
         return
+
+    # Determine the optimal number of threads if not provided
+    if max_threads is None:
+        max_threads = cpu_count() or 4  # Fallback to 4 if os.cpu_count() returns None
+        if verbose:
+          print(f"Using {max_threads} threads for processing.")
+          sleep(2)
 
     try:
         with open(wordlist_path, "r") as file:
