@@ -6,6 +6,8 @@ A Python-based brute-force tool for cracking AES-encrypted zip files. This scrip
 
 - **Multi-threaded Processing:** Uses a thread pool to attempt multiple passwords simultaneously.
 - **Multiple Wordlists:** Choose between human-only, common-password-win, or rockyou wordlists.
+- **Interactive File Viewer:** Upon finding the correct password, an interactive session allows you to browse and view files within the archive.
+- **Graphical Tree Display:** Uses the `rich` library to display a neat, colored tree of the archive’s directory structure.
 - **Graceful Interrupt:** Stops all threads cleanly when a password is found or on user interruption.
 - **Verbose Mode:** Option to print each failed attempt for better traceability.
 
@@ -13,6 +15,7 @@ A Python-based brute-force tool for cracking AES-encrypted zip files. This scrip
 
 - **Python 3.6+**
 - **pyzipper:** For handling AES encrypted zip files.
+- **rich:** For enhanced console output and tree visualization.
 
 Install the required Python packages using pip:
 
@@ -53,19 +56,51 @@ If neither `-p` nor `-w` is provided, the tool defaults to using the `rockyou.tx
 - Use the rockyou wordlist (default):
 
     ```bash
-    python script.py -f secret.zip
+    python zip-cracker.py -f secret.zip
     ```
 
 - Use the human-only wordlist in verbose mode:
 
     ```bash
-    python script.py -f secret.zip -p -v
+    python zip-cracker.py -f secret.zip -p -v
     ```
 
 - Use the common-password-win wordlist:
 
     ```bash
-    python script.py -f secret.zip -w
+    python zip-cracker.py -f secret.zip -w
+    ```
+- Output
+
+    ```yaml
+    python zip-cracker.py -f secret.zip -w
+    Initializing a bruteforce attack on C:\secret.zip using the common-password-win wordlist.
+    Password found: test
+    
+    📂 C:\secret.zip
+    └── home
+        ├── flag.txt
+        └── profiles
+            ├── passwords.txt
+            └── usernames.txt
+    
+    Enter the file path to view (or type 'quit' to exit): home/flag.txt
+    
+    File Contents:
+    
+    {My_zip_has_been_cracked}
+    
+    **************
+    
+    📂 C:\secret.zip
+    └── home
+        ├── flag.txt
+        └── profiles
+            ├── passwords.txt
+            └── usernames.txt
+    
+    Enter the file path to view (or type 'quit' to exit): quit
+    Exiting file viewer.
     ```
 
 ## Code Overview
