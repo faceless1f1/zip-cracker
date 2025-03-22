@@ -72,8 +72,8 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("-f", help="Path to the zip file", required=True)
     parser.add_argument("-v", help="Verbose mode", action="store_true")
-    parser.add_argument("-l", help="Use the human-only wordlist", action="store_true")
-    parser.add_argument("-w", help="Use the all-wordlist", action="store_true")
+    parser.add_argument("-p", help="Use the passwords wordlist", action="store_true")
+    parser.add_argument("-w", help="Use the common-password-win wordlist", action="store_true")
     args = parser.parse_args()
     zip_file = args.f
 
