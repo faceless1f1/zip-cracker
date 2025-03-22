@@ -24,6 +24,7 @@ def interactive_cat(zip_file, password):
                 return
 
             while True:
+                print_zip_tree(zip_file, password)
                 file_to_view = input("\nEnter the file path to view (or type 'quit' to exit): ").strip()
                 if file_to_view.lower() == "quit":
                     print("Exiting file viewer.")
@@ -42,6 +43,7 @@ def interactive_cat(zip_file, password):
                     # Try decoding as UTF-8 (replace errors) to handle non-text content gracefully
                     print("\nFile Contents:\n")
                     print(content.decode("utf-8", errors="replace"))
+                    print("\n**************\n")
                 except Exception as e:
                     print(f"Error reading file {file_to_view}: {e}")
     except Exception as e:
@@ -94,7 +96,6 @@ def try_password(zip_file, password, verbose):
             if zip.testzip() is None:  # If no errors, password is correct
                 print(f"Password found: {password}\n")
                 stop_event.set()  # Signal other threads to stop
-                print_zip_tree(zip_file, password)
                 interactive_cat(zip_file, password)
                 return True
     except (RuntimeError, BadZipFile):
