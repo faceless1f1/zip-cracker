@@ -10,6 +10,7 @@ A Python-based brute-force tool for cracking AES-encrypted zip files. This scrip
 - **Graphical Tree Display:** Uses the `rich` library to display a neat, colored tree of the archive’s directory structure.
 - **Graceful Interrupt:** Stops all threads cleanly when a password is found or on user interruption.
 - **Verbose Mode:** Option to print each failed attempt for better traceability.
+- **Variable Multithreading:** Determines the optimal amount of threads to run on the user's machine. It also allows the user to override this.
 
 ## Prerequisites
 
@@ -48,6 +49,7 @@ python zip-cracker.py -f path/to/yourfile.zip [options]
 - **`-v`**: Verbose mode. Prints each incorrect password attempt.
 - **`-p`**: Use the password wordlist (`passwords.txt`).
 - **`-w`**: Use the common-password-win wordlist (`common-passwords-win.txt`).
+- **`-t`**: Set threads manually
 
 If neither `-p` nor `-w` is provided, the tool defaults to using the `rockyou.txt` wordlist.
 
@@ -70,11 +72,12 @@ If neither `-p` nor `-w` is provided, the tool defaults to using the `rockyou.tx
     ```bash
     python zip-cracker.py -f secret.zip -w
     ```
-- Output
-
+## Output
+The -t flag is not necessary here but it will make the program run on 8 threads regardless what the program calculates as the optimal amount of threads.
     ```yaml
-    python zip-cracker.py -f secret.zip -w
+    python zip-cracker.py -f secret.zip -w -t 8
     Initializing a bruteforce attack on C:\secret.zip using the common-password-win wordlist.
+    
     Password found: test
     
     📂 C:\secret.zip
