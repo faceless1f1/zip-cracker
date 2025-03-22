@@ -120,4 +120,3 @@ This project is licensed under the [MIT License](LICENSE).
 ## Disclaimer
 
 Use this tool responsibly and only on zip files you have permission to test. The author is not responsible for any misuse or damage caused by this tool.
-```
