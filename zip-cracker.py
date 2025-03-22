@@ -119,6 +119,9 @@ def process_wordlist(zip_file, wordlist_path, verbose, max_threads=None):
         if verbose:
           print(f"Using {max_threads} threads for processing.")
           sleep(2)
+    if verbose:
+      print(f"Using {max_threads} threads for processing.")
+      sleep(2)
 
     try:
         with open(wordlist_path, "r") as file:
@@ -161,7 +164,9 @@ def main():
     parser.add_argument("-v", help="Verbose mode", action="store_true")
     parser.add_argument("-p", help="Use the passwords wordlist", action="store_true")
     parser.add_argument("-w", help="Use the common-password-win wordlist", action="store_true")
+    parser.add_argument("-t", help="Number of threads to use for processing", type=int)  # Add the -t flag
     args = parser.parse_args()
+
     zip_file = args.f
 
     if not path.exists(zip_file):
@@ -171,13 +176,13 @@ def main():
     try:
         if args.p:
             print(f"Initializing a bruteforce attack on {zip_file} using the password wordlist.")
-            process_wordlist(zip_file, "wordlists/passwords.txt", args.v)
+            process_wordlist(zip_file, "wordlists/passwords.txt", args.v, args.t)
         elif args.w:
             print(f"Initializing a bruteforce attack on {zip_file} using the common-password-win wordlist.")
-            process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.v)
+            process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.v, args.t)
         else:
             print(f"Initializing a bruteforce attack on {zip_file} using the rockyou wordlist.")
-            process_wordlist(zip_file, "wordlists/rockyou.txt", args.v)
+            process_wordlist(zip_file, "wordlists/rockyou.txt", args.v, args.t)
     except KeyboardInterrupt:
         stop_event.set()  # Signal threads to stop
         print("\n[!] Program interrupted by user. Exiting...")
