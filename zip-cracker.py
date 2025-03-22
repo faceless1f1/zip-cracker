@@ -94,13 +94,13 @@ def try_password(zip_file, password, verbose):
         with AESZipFile(zip_file, 'r') as zip:
             zip.pwd = password.encode()
             if zip.testzip() is None:  # If no errors, password is correct
-                print(f"Password found: {password}\n")
+                print(f"\n[SUCCESS] Password found: {password}\n")
                 stop_event.set()  # Signal other threads to stop
                 interactive_cat(zip_file, password)
                 return True
     except (RuntimeError, BadZipFile):
         if verbose and not stop_event.is_set():
-            print(f"Incorrect password: {password}")
+            print(f"[FAILED] Incorrect password: {password} || Attempted on {zip_file} || Attempted by thread {threading.current_thread().name}")
     except KeyboardInterrupt:
         stop_event.set()
         raise  # Propagate the interrupt to allow a graceful exit
@@ -140,7 +140,7 @@ def process_wordlist(zip_file, wordlist_path, verbose, max_threads=4):
                 return
 
         if not stop_event.is_set():
-            print("Password not found in the wordlist.")
+            print("[FAILED] Password not found in the wordlist.")
     except KeyboardInterrupt:
         stop_event.set()
         print("\n[!] Program interrupted by user. Exiting...")
