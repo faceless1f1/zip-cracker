@@ -163,13 +163,13 @@ def main():
     try:
         if args.p:
             print(f"Initializing a bruteforce attack on {zip_file} using the password wordlist.")
-            process_wordlist(zip_file, "passwords.txt", args.v)
+            process_wordlist(zip_file, "wordlists/passwords.txt", args.v)
         elif args.w:
             print(f"Initializing a bruteforce attack on {zip_file} using the common-password-win wordlist.")
-            process_wordlist(zip_file, "common-passwords-win.txt", args.v)
+            process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.v)
         else:
             print(f"Initializing a bruteforce attack on {zip_file} using the rockyou wordlist.")
-            process_wordlist(zip_file, "rockyou.txt", args.v)
+            process_wordlist(zip_file, "wordlists/rockyou.txt", args.v)
     except KeyboardInterrupt:
         stop_event.set()  # Signal threads to stop
         print("\n[!] Program interrupted by user. Exiting...")
