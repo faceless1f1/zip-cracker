@@ -28,8 +28,8 @@ pip install pyzipper
 1. Clone this repository:
 
     ```bash
-    git clone https://github.com/yourusername/zip-bruteforce-tool.git
-    cd zip-bruteforce-tool
+    git clone https://github.com/faceless1f1/zip-cracker.git
+    cd zip-cracker
     ```
 
 2. Ensure that your wordlists (`rockyou.txt`, `passwords.txt`, and `common-passwords-win.txt`) are in the same directory or update the paths accordingly.
@@ -39,7 +39,7 @@ pip install pyzipper
 Run the script from the command line by specifying the zip file to attack and choosing a wordlist option:
 
 ```bash
-python script.py -f path/to/yourfile.zip [options]
+python zip-cracker.py -f path/to/yourfile.zip [options]
 ```
 
 ### Command-Line Arguments
