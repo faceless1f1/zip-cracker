@@ -225,12 +225,12 @@ def process_wordlist_gpu(zip_file, wordlist_path, verbose, max_threads=None):
   except Exception as e:
     print(f"[ERROR] An unexpected error occurred: {e}")
 
-def extract_if_needed(wordlist_path):
+def extract_zip(wordlist_path):
     """
     Check if the rockyou wordlist is zipped and extract it if necessary.
     """
     if wordlist_path.endswith(".zip"):
-        extracted_path = wordlist_path.replace(".zip", "")
+        extracted_path = wordlist_path.replace(".zip", ".txt")
         if not path.exists(extracted_path):
             print(f"[INFO] Extracting {wordlist_path}...")
             try:
@@ -303,18 +303,18 @@ def main():
       if args.g:
         if check_cuda_support():
           print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}")
-          custom_wordlist_path = extract_if_needed(custom_wordlist)
-          if custom_wordlist_path:
+          if custom_wordlist.endswith(".zip"):
+            extract_zip(custom_wordlist)
             process_wordlist_gpu(zip_file, custom_wordlist_path, args.verbose, args.t)
         else:
           print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}")
           threads = prompt_for_threads() if args.t is not None else cpu_count()
-          custom_wordlist_path = extract_if_needed(custom_wordlist)
+          custom_wordlist_path = extract_zip(custom_wordlist)
           if custom_wordlist_path:
             process_wordlist(zip_file, custom_wordlist, args.verbose, threads)
       else:
         print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}.")
-        custom_wordlist_path = extract_if_needed(custom_wordlist)
+        custom_wordlist_path = extract_zip(custom_wordlist)
         if custom_wordlist_path:
             process_wordlist(zip_file, custom_wordlist, args.verbose, args.t)
 
@@ -322,18 +322,26 @@ def main():
       if args.g:
         if check_cuda_support():
           print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
-          rockyou_path = extract_if_needed("wordlists/rockyou.zip")
-          if rockyou_path:
-            process_wordlist_gpu(zip_file, rockyou_path, args.verbose, args.t)
+          if path.exists("wordlists/rockyou.txt"):
+            process_wordlist_gpu(zip_file, "wordlists/rockyou.txt")
+          else:
+            rockyou_path = extract_zip("wordlists/rockyou.zip")
+            if rockyou_path:
+              process_wordlist_gpu(zip_file, rockyou_path, args.verbose, args.t)
         else:
           print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
-          rockyou_path = extract_if_needed("wordlists/rockyou.zip")
-          if rockyou_path:
-            threads = prompt_for_threads() if args.t is not None else cpu_count()
-            process_wordlist(zip_file, rockyou_path, args.verbose, threads)
+          if path.exists("wordlists/rockyou.txt"):
+            process_wordlist(zip_file, "wordlist/rockyou.txt", args.verbose, threads)
+          else:
+            rockyou_path = extract_zip("wordlists/rockyou.zip")
+            if rockyou_path:
+                threads = prompt_for_threads() if args.t is not None else cpu_count()
+                process_wordlist(zip_file, rockyou_path, args.verbose, threads)
       else:
         print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
-        rockyou_path = extract_if_needed("wordlists/rockyou.zip")
+        if path.exists("wordlist/rockyou.txt"):
+           process_wordlist(zip_file, rockyou_path, args.verbose, args.t)
+        rockyou_path = extract_zip("wordlists/rockyou.zip")
         if rockyou_path:
           process_wordlist(zip_file, rockyou_path, args.verbose, args.t)
 
