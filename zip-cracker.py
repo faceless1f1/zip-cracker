@@ -5,10 +5,11 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 from rich.console import Console
 from rich.tree import Tree
-from time import sleep, time
+from time import time
 from numba import cuda
 from numba.cuda.cudadrv.error import CudaSupportError
 import numpy as np
+import chardet
 
 # Global flag to stop threads when interrupted
 stop_event = threading.Event()
@@ -132,6 +133,15 @@ def try_password(zip_file, password, verbose, start_time, thread_id=None):
         raise
     return False
 
+def detect_encoding(file_path):
+    """
+    Detect the encoding of a file using chardet.
+    """
+    with open(file_path, "rb") as f:
+        raw_data = f.read(10000)  # Read the first 10,000 bytes for detection
+        result = chardet.detect(raw_data)
+        return result["encoding"]
+
 def process_wordlist(zip_file, wordlist_path, verbose, max_threads=None):
     if not path.exists(wordlist_path):
         print(f"[Error] '{wordlist_path}' not found.")
@@ -142,12 +152,17 @@ def process_wordlist(zip_file, wordlist_path, verbose, max_threads=None):
 
     if verbose >= 1:
         print(f"[INFO] Using {max_threads} threads for processing.")
-        sleep(2)
 
     start_time = time()
 
     try:
-        with open(wordlist_path, "r") as file:
+        # Detect encoding of the wordlist file
+        encoding = detect_encoding(wordlist_path)
+        if verbose >= 1:
+            print(f"[INFO] Detected encoding: {encoding}")
+
+        # Open the wordlist file with the detected encoding
+        with open(wordlist_path, "r", encoding=encoding, errors="ignore") as file:
             passwords = [line.strip() for line in file]
 
         with ThreadPoolExecutor(max_threads) as executor:
