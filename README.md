@@ -12,6 +12,7 @@ A Python-based brute-force tool for cracking AES-encrypted zip files. This scrip
 - **Graceful Interrupt:** Stops all threads cleanly when a password is found or on user interruption.
 - **Verbose Mode:** Option to print each failed attempt for better traceability.
 - **Variable Multithreading:** Determines the optimal amount of threads to run on the user's machine. It also allows the user to override this.
+- **Automatic Zip Handling:** Automatically unzips wordlists before using them
 
 ## Prerequisites
 
