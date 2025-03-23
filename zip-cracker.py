@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from rich.console import Console
 from rich.tree import Tree
-from time import sleep
+from time import sleep, time
 
 # Global flag to stop threads when interrupted
 stop_event = threading.Event()
@@ -86,7 +86,7 @@ def print_zip_tree(zip_file, password):
                 nodes[path_so_far] = parent.add(part)
     console.print(tree)
 
-def try_password(zip_file, password, verbose):
+def try_password(zip_file, password, verbose, start_time):
     """Attempt to unlock the zip file with the given password."""
     if stop_event.is_set():  # Check if the stop flag is set
         return False
@@ -95,7 +95,10 @@ def try_password(zip_file, password, verbose):
         with AESZipFile(zip_file, 'r') as zip:
             zip.pwd = password.encode()
             if zip.testzip() is None:  # If no errors, password is correct
-                print(f"\n[SUCCESS] Password found: {password}\n")
+                end_time = time()  # End the timer
+                elapsed_time = end_time - start_time
+                print(f"\n[SUCCESS] Password found: {password}")
+                print(f"[INFO] Password cracked in {elapsed_time:.2f} seconds\n")
                 stop_event.set()  # Signal other threads to stop
                 interactive_cat(zip_file, password)
                 return True
@@ -116,19 +119,19 @@ def process_wordlist(zip_file, wordlist_path, verbose, max_threads=None):
     # Determine the optimal number of threads if not provided
     if max_threads is None:
         max_threads = cpu_count() or 4  # Fallback to 4 if os.cpu_count() returns None
-        if verbose:
-          print(f"Using {max_threads} threads for processing.")
-          sleep(2)
+
     if verbose:
-      print(f"Using {max_threads} threads for processing.")
-      sleep(2)
+        print(f"Using {max_threads} threads for processing.")
+        sleep(2)
+
+    start_time = time()  # Start the timer
 
     try:
         with open(wordlist_path, "r") as file:
             passwords = [line.strip() for line in file]
 
         with ThreadPoolExecutor(max_threads) as executor:
-            futures = {executor.submit(try_password, zip_file, password, verbose): password
+            futures = {executor.submit(try_password, zip_file, password, verbose, start_time): password
                        for password in passwords}
             try:
                 for future in as_completed(futures):
