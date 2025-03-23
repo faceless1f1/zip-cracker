@@ -10,6 +10,7 @@ from numba import cuda
 from numba.cuda.cudadrv.error import CudaSupportError
 import numpy as np
 import chardet
+import zipfile
 
 # Global flag to stop threads when interrupted
 stop_event = threading.Event()
@@ -110,28 +111,30 @@ def print_zip_tree(zip_file, password):
     console.print(tree)
 
 def try_password(zip_file, password, verbose, start_time, thread_id=None):
-    if stop_event.is_set():
-        return False
-
-    try:
-        with AESZipFile(zip_file, 'r') as zip:
-            zip.pwd = password.encode()
-            if zip.testzip() is None:
-                stop_event.set()
-                elapsed_time = time() - start_time
-                print(f"\n[SUCCESS] Password found: {password}")
-                print(f"[INFO] Password cracked in {elapsed_time:.2f} seconds\n")
-                interactive_cat(zip_file, password)
-                return True
-    except (RuntimeError, BadZipFile):
-        # Only show detailed failed attempt logs when verbosity is 2 or greater.
-        if verbose >= 2 and not stop_event.is_set():
-            thread_info = f" || Thread ID: {thread_id}" if thread_id is not None else ""
-            print(f"[FAILED] Incorrect password: {password} || Attempted on {zip_file}{thread_info}")
-    except KeyboardInterrupt:
-        stop_event.set()
-        raise
+  """
+  Attempt to unlock the zip file with the given password.
+  """
+  if stop_event.is_set():  # Check the stop_event flag
     return False
+
+  try:
+    with AESZipFile(zip_file, 'r') as zip:
+      zip.pwd = password.encode()
+      if zip.testzip() is None:
+        stop_event.set()  # Set the stop_event flag if the password is found
+        elapsed_time = time() - start_time
+        print(f"\n[SUCCESS] Password found: {password}")
+        print(f"[INFO] Password cracked in {elapsed_time:.2f} seconds\n")
+        interactive_cat(zip_file, password)
+        return True
+  except (RuntimeError, BadZipFile):
+    if verbose >= 2 and not stop_event.is_set():
+      thread_info = f" || Thread ID: {thread_id}" if thread_id is not None else ""
+      print(f"[FAILED] Incorrect password: {password} || Attempted on {zip_file}{thread_info}")
+  except KeyboardInterrupt:
+    stop_event.set()  # Set the stop_event flag on interrupt
+    raise
+  return False
 
 def detect_encoding(file_path):
     """
@@ -213,87 +216,123 @@ def process_wordlist_gpu(zip_file, wordlist_path, verbose, max_threads=None):
     else:
         print("[FAILED] Password not found in the wordlist.")
 
-def main():
-    parser = ArgumentParser()
-    parser.add_argument("-f", help="Path to the zip file", required=True)
-    # Use action="count" for verbosity
-    parser.add_argument("-v", "--verbose", action="count", default=0,
-                        help="Increase verbosity level (-v for info, -vv for debug)")
-    parser.add_argument("-p", help="Use the passwords wordlist", action="store_true")
-    parser.add_argument("-w", help="Use the common-password-win wordlist", action="store_true")
-    parser.add_argument("-l", help="Use a custom wordlist", type=str)
-    parser.add_argument("-t", help="Number of threads to use for processing", type=int)
-    parser.add_argument("-g", help="Switch to GPU multithreading mode", action="store_true")
-    args = parser.parse_args()
+def extract_if_needed(wordlist_path):
+    """
+    Check if the rockyou wordlist is zipped and extract it if necessary.
+    """
+    if wordlist_path.endswith(".zip"):
+        extracted_path = wordlist_path.replace(".zip", "")
+        if not path.exists(extracted_path):
+            print(f"[INFO] Extracting {wordlist_path}...")
+            try:
+                with zipfile.ZipFile(wordlist_path, 'r') as zip_ref:
+                    zip_ref.extractall(path.dirname(wordlist_path))
+                print(f"[INFO] Extracted to {extracted_path}")
+            except zipfile.BadZipFile:
+                print(f"[ERROR] The file {wordlist_path} is not a valid zip file.")
+                return None
 
-    zip_file = args.f
-    custom_wordlist = args.l
-
-    if not path.exists(zip_file):
-        print("[ERROR] The specified file does not exist.")
-        return
-
-    try:
-        if args.p:
-            if args.g:
-                if check_cuda_support():
-                    print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file}.")
-                    process_wordlist_gpu(zip_file, "wordlists/passwords.txt", args.verbose, args.t)
-                else:
-                    print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file}.")
-                    threads = prompt_for_threads() if args.t is not None else cpu_count()
-                    process_wordlist(zip_file, "wordlists/passwords.txt", args.verbose, threads)
-            else:
-                print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the password wordlist.")
-                process_wordlist(zip_file, "wordlists/passwords.txt", args.verbose, args.t)
-
-        elif args.w:
-            if args.g:
-                if check_cuda_support():
-                    print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the common-password-win wordlist.")
-                    process_wordlist_gpu(zip_file, "wordlists/common-passwords-win.txt", args.verbose, args.t)
-                else:
-                    print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file}.")
-                    threads = prompt_for_threads() if args.t is not None else cpu_count()
-                    process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.verbose, threads)
-            else:
-                print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the common-password-win wordlist.")
-                process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.verbose, args.t)
-
-        elif args.l:
-            if not path.exists(custom_wordlist):
-                print(f"[ERROR] The specified custom wordlist '{custom_wordlist}' does not exist.")
-                return
-            if args.g:
-                if check_cuda_support():
-                    print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}")
-                    process_wordlist_gpu(zip_file, custom_wordlist, args.verbose, args.t)
-                else:
-                    print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}")
-                    threads = prompt_for_threads() if args.t is not None else cpu_count()
-                    process_wordlist(zip_file, custom_wordlist, args.verbose, threads)
-            else:
-                print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}.")
-                process_wordlist(zip_file, custom_wordlist, args.verbose, args.t)
-
+        # Check if the extracted path is a directory and contains rockyou.txt
+        rockyou_txt_path = ("wordlists/rockyou.txt")
+        if path.isfile(rockyou_txt_path):
+            return rockyou_txt_path
         else:
-            if args.g:
-                if check_cuda_support():
-                    print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
-                    process_wordlist_gpu(zip_file, "wordlists/rockyou.txt", args.verbose, args.t)
-                else:
-                    print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
-                    threads = prompt_for_threads() if args.t is not None else cpu_count()
-                    process_wordlist(zip_file, "wordlists/rockyou.txt", args.verbose, threads)
-            else:
-                print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
-                process_wordlist(zip_file, "wordlists/rockyou.txt", args.verbose, args.t)
+            print(f"[ERROR] The extracted file 'rockyou.txt' was not found in {extracted_path}.")
+            return None
 
-    except KeyboardInterrupt:
-        stop_event.set()
-        print("\n[INFO] Program interrupted by user. Exiting...")
-    except Exception as e:
-        print(f"[ERROR] An unexpected error occurred: {e}")
+    return wordlist_path
+
+def main():
+  parser = ArgumentParser()
+  parser.add_argument("-f", help="Path to the zip file", required=True)
+  parser.add_argument("-v", "--verbose", action="count", default=0, help="Increase verbosity level (-v for info, -vv for debug)")
+  parser.add_argument("-p", help="Use the passwords wordlist", action="store_true")
+  parser.add_argument("-w", help="Use the common-password-win wordlist", action="store_true")
+  parser.add_argument("-l", help="Use a custom wordlist", type=str)
+  parser.add_argument("-t", help="Number of threads to use for processing", type=int)
+  parser.add_argument("-g", help="Switch to GPU multithreading mode", action="store_true")
+  args = parser.parse_args()
+
+  zip_file = args.f
+  custom_wordlist = args.l
+
+  if not path.exists(zip_file):
+    print("[ERROR] The specified file does not exist.")
+    return
+
+  try:
+    if args.p:
+      if args.g:
+        if check_cuda_support():
+          print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file}.")
+          process_wordlist_gpu(zip_file, "wordlists/passwords.txt", args.verbose, args.t)
+        else:
+          print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file}.")
+          threads = prompt_for_threads() if args.t is not None else cpu_count()
+          process_wordlist(zip_file, "wordlists/passwords.txt", args.verbose, threads)
+      else:
+        print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the password wordlist.")
+        process_wordlist(zip_file, "wordlists/passwords.txt", args.verbose, args.t)
+
+    elif args.w:
+      if args.g:
+        if check_cuda_support():
+          print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the common-password-win wordlist.")
+          process_wordlist_gpu(zip_file, "wordlists/common-passwords-win.txt", args.verbose, args.t)
+        else:
+          print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file}.")
+          threads = prompt_for_threads() if args.t is not None else cpu_count()
+          process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.verbose, threads)
+      else:
+        print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the common-password-win wordlist.")
+        process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.verbose, args.t)
+
+    elif args.l:
+      if not path.exists(custom_wordlist):
+        print(f"[ERROR] The specified custom wordlist '{custom_wordlist}' does not exist.")
+        return
+      if args.g:
+        if check_cuda_support():
+          print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}")
+          custom_wordlist_path = extract_if_needed(custom_wordlist)
+          if custom_wordlist_path:
+            process_wordlist_gpu(zip_file, custom_wordlist_path, args.verbose, args.t)
+        else:
+          print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}")
+          threads = prompt_for_threads() if args.t is not None else cpu_count()
+          custom_wordlist_path = extract_if_needed(custom_wordlist)
+          if custom_wordlist_path:
+            process_wordlist(zip_file, custom_wordlist, args.verbose, threads)
+      else:
+        print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the custom wordlist: {custom_wordlist}.")
+        custom_wordlist_path = extract_if_needed(custom_wordlist)
+        if custom_wordlist_path:
+            process_wordlist(zip_file, custom_wordlist, args.verbose, args.t)
+
+    else:
+      if args.g:
+        if check_cuda_support():
+          print(f"[INFO] Initializing a GPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
+          rockyou_path = extract_if_needed("wordlists/rockyou.zip")
+          if rockyou_path:
+            process_wordlist_gpu(zip_file, rockyou_path, args.verbose, args.t)
+        else:
+          print(f"[INFO] Falling back to CPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
+          rockyou_path = extract_if_needed("wordlists/rockyou.zip")
+          if rockyou_path:
+            threads = prompt_for_threads() if args.t is not None else cpu_count()
+            process_wordlist(zip_file, rockyou_path, args.verbose, threads)
+      else:
+        print(f"[INFO] Initializing a CPU-based bruteforce attack on {zip_file} using the rockyou wordlist.")
+        rockyou_path = extract_if_needed("wordlists/rockyou.zip")
+        if rockyou_path:
+          process_wordlist(zip_file, rockyou_path, args.verbose, args.t)
+
+  except KeyboardInterrupt:
+    stop_event.set()
+    print("\n[INFO] Program interrupted by user. Exiting...")
+  except Exception as e:
+    print(f"[ERROR] An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
     main()
