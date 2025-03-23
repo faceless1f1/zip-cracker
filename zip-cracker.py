@@ -95,11 +95,11 @@ def try_password(zip_file, password, verbose, start_time):
         with AESZipFile(zip_file, 'r') as zip:
             zip.pwd = password.encode()
             if zip.testzip() is None:  # If no errors, password is correct
+                stop_event.set()  # Signal other threads to stop
                 end_time = time()  # End the timer
                 elapsed_time = end_time - start_time
                 print(f"\n[SUCCESS] Password found: {password}")
                 print(f"[INFO] Password cracked in {elapsed_time:.2f} seconds\n")
-                stop_event.set()  # Signal other threads to stop
                 interactive_cat(zip_file, password)
                 return True
     except (RuntimeError, BadZipFile):
@@ -131,27 +131,11 @@ def process_wordlist(zip_file, wordlist_path, verbose, max_threads=None):
             passwords = [line.strip() for line in file]
 
         with ThreadPoolExecutor(max_threads) as executor:
-            futures = {executor.submit(try_password, zip_file, password, verbose, start_time): password
-                       for password in passwords}
-            try:
-                for future in as_completed(futures):
-                    if stop_event.is_set():
-                        break
-                    try:
-                        if future.result():  # If a password is found, stop further processing
-                            stop_event.set()
-                            break
-                    except KeyboardInterrupt:
-                        stop_event.set()
-                        print("\n[!] Program interrupted by user. Exiting...")
-                        return
-                    except Exception as e:
-                        if not stop_event.is_set():
-                            print(f"Error during password attempt: {e}")
-            except KeyboardInterrupt:
-                stop_event.set()
-                print("\n[!] Program interrupted by user. Exiting...")
-                return
+            results = executor.map(lambda password: try_password(zip_file, password, verbose, start_time), passwords)
+            for result in results:
+                if result:
+                    stop_event.set()
+                    break
 
         if not stop_event.is_set():
             print("[FAILED] Password not found in the wordlist.")
@@ -167,6 +151,7 @@ def main():
     parser.add_argument("-v", help="Verbose mode", action="store_true")
     parser.add_argument("-p", help="Use the passwords wordlist", action="store_true")
     parser.add_argument("-w", help="Use the common-password-win wordlist", action="store_true")
+    parser.add_argument("-l", help="Use a custom wordlist", )
     parser.add_argument("-t", help="Number of threads to use for processing", type=int)  # Add the -t flag
     args = parser.parse_args()
 
@@ -183,6 +168,9 @@ def main():
         elif args.w:
             print(f"Initializing a bruteforce attack on {zip_file} using the common-password-win wordlist.")
             process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.v, args.t)
+        elif args.l:
+            print(f"Initializing a bruteforce attack on {zip_file} using the custom wordlist: {args.l}")
+            process_wordlist(zip_file, args.l, args.v, args.t)
         else:
             print(f"Initializing a bruteforce attack on {zip_file} using the rockyou wordlist.")
             process_wordlist(zip_file, "wordlists/rockyou.txt", args.v, args.t)
