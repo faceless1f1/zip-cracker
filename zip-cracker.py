@@ -151,11 +151,12 @@ def main():
     parser.add_argument("-v", help="Verbose mode", action="store_true")
     parser.add_argument("-p", help="Use the passwords wordlist", action="store_true")
     parser.add_argument("-w", help="Use the common-password-win wordlist", action="store_true")
-    parser.add_argument("-l", help="Use a custom wordlist", )
+    parser.add_argument("-l", help="Use a custom wordlist")
     parser.add_argument("-t", help="Number of threads to use for processing", type=int)  # Add the -t flag
     args = parser.parse_args()
 
     zip_file = args.f
+    custom_wordlist = args.l
 
     if not path.exists(zip_file):
         print("Error: The specified file does not exist.")
@@ -169,8 +170,11 @@ def main():
             print(f"Initializing a bruteforce attack on {zip_file} using the common-password-win wordlist.")
             process_wordlist(zip_file, "wordlists/common-passwords-win.txt", args.v, args.t)
         elif args.l:
+            if not path.exists(custom_wordlist):
+                print(f"Error: The specified custom wordlist '{custom_wordlist}' does not exist.")
+                return
             print(f"Initializing a bruteforce attack on {zip_file} using the custom wordlist: {args.l}")
-            process_wordlist(zip_file, args.l, args.v, args.t)
+            process_wordlist(zip_file, custom_wordlist, args.v, args.t)
         else:
             print(f"Initializing a bruteforce attack on {zip_file} using the rockyou wordlist.")
             process_wordlist(zip_file, "wordlists/rockyou.txt", args.v, args.t)
