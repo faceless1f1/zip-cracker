@@ -11,9 +11,32 @@ from numba.cuda.cudadrv.error import CudaSupportError
 import numpy as np
 import chardet
 import zipfile
+import socket
+import paramiko
 
 # Global flag to stop threads when interrupted
 stop_event = threading.Event()
+
+def wordlist_batching(wordlist, cpu_counts, hasGpuModeEnabled, gpu_counts): #TODO add batching to split wordlists for remote machines
+    pass
+
+def remote_distribution(zip_file, wordlist_batch): #TODO add a distribution function to distribute batched wordlists and zip files to remote machines
+    pass
+
+def remote_batch(hosts, usernames, passwords): #TODO add a function to batch the hosts, usernames and passwords to be passed into the remote task function
+    pass
+
+def remote_task(host, username, password, commands): #TODO add a function to iterate through the hosts, usernames and passwords and send commands
+    pass
+
+def remote_cleaning(hosts, usernames, passwords): #TODO add automatic cleaning of zip files and wordlists from remote machines
+    pass
+
+def local_cleaning(current_wordlist_path): #TODO add local cleanup function to clean up unzipped files and -c flag
+    pass
+
+def remote_cuda_support(): #TODO add a function that checks if the remote machine has CUDA support
+    pass
 
 def check_cuda_support():
     try:
@@ -260,6 +283,7 @@ def main():
   parser.add_argument("-l", help="Use a custom wordlist", type=str)
   parser.add_argument("-t", help="Number of threads to use for processing", type=int)
   parser.add_argument("-g", help="Switch to GPU multithreading mode", action="store_true")
+  #TODO add the -c flag
   args = parser.parse_args()
 
   zip_file = args.f
