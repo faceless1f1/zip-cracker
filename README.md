@@ -1,6 +1,6 @@
 # zip-cracker
 
-A Python-based brute-force tool for cracking AES-encrypted zip files. This script leverages multi-threading to speed up the password cracking process using different wordlists. It supports several wordlists and includes an option for verbose output.
+A Python-based dictionary attack tool for cracking AES-encrypted zip files. This script leverages multi-threading to speed up the password cracking process using different wordlists. It supports several wordlists and includes an option for verbose output.
 
 ## Features
 
