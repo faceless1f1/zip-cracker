@@ -23,8 +23,15 @@ A Python-based dictionary attack tool for cracking AES-encrypted zip files. This
 
 Install the required Python packages using pip:
 
+Individually
 ```bash
+cd zip-cracker
 pip install pyzipper, rich, numba
+```
+or as requirements.txt
+```bash
+cd zip-cracker
+pip install -r /path/to/requirements.txt -f file:///path/to/archive/
 ```
 
 ## Installation
