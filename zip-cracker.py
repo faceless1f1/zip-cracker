@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from pyzipper import AESZipFile, BadZipFile
 from os import path, cpu_count
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from rich.console import Console
 from rich.tree import Tree
@@ -148,46 +148,70 @@ def detect_encoding(file_path):
         return result["encoding"]
 
 def process_wordlist(zip_file, wordlist_path, verbose, max_threads=None):
-  if not path.exists(wordlist_path):
-    print(f"[Error] '{wordlist_path}' not found.")
-    return
+    if not path.exists(wordlist_path):
+        print(f"[Error] '{wordlist_path}' not found.")
+        return
 
-  if max_threads is None:
-    max_threads = cpu_count() or 4
+    if max_threads is None:
+        max_threads = cpu_count() or 4
 
-  if verbose >= 1:
-    print(f"[INFO] Using {max_threads} threads for processing.")
-
-  start_time = time()
-
-  try:
-    # Detect encoding of the wordlist file
-    encoding = detect_encoding(wordlist_path)
     if verbose >= 1:
-      print(f"[INFO] Detected encoding: {encoding}")
+        print(f"[INFO] Using {max_threads} threads for processing.")
 
-    # Open the wordlist file with the detected encoding
-    with open(wordlist_path, "r", encoding=encoding, errors="ignore") as file:
-      passwords = [line.strip() for line in file]
+    start_time = time()
 
-    with ThreadPoolExecutor(max_threads) as executor:
-      results = executor.map(
-        lambda args: try_password(zip_file, *args),
-        [(password, verbose, start_time, thread_id % max_threads)
-         for thread_id, password in enumerate(passwords)]
-      )
-      for result in results:
-         if result:
-          stop_event.is_set()
-          break
+    def password_generator(file_path, encoding):
+        """Generator to yield passwords line by line."""
+        with open(file_path, "r", encoding=encoding, errors="ignore") as file:
+            for line in file:
+                yield line.strip()
 
-    if not stop_event.is_set():
-      print("[FAILED] Password not found in the wordlist.")
-  except KeyboardInterrupt:
-    stop_event.set()
-    print("\n[INFO] Program interrupted by user. Exiting...")
-  except Exception as e:
-    print(f"[ERROR] An unexpected error occurred: {e}")
+    try:
+        # Detect encoding of the wordlist file
+        encoding = detect_encoding(wordlist_path)
+        if verbose >= 1:
+            print(f"[INFO] Detected encoding: {encoding}")
+
+        with ThreadPoolExecutor(max_threads) as executor:
+            futures = []
+            for thread_id, password in enumerate(password_generator(wordlist_path, encoding)):
+                if stop_event.is_set():
+                    break
+                futures.append(
+                    executor.submit(try_password, zip_file, password, verbose, start_time, thread_id % max_threads)
+                )
+
+                # Process completed futures in batches
+                if len(futures) >= max_threads:
+                    for future in as_completed(futures):
+                        if stop_event.is_set():
+                            break
+                        try:
+                            if future.result():
+                                stop_event.set()
+                                break
+                        except Exception as e:
+                            print(f"[ERROR] Exception in thread: {e}")
+                    futures = []
+
+            # Process any remaining futures
+            for future in as_completed(futures):
+                if stop_event.is_set():
+                    break
+                try:
+                    if future.result():
+                        stop_event.set()
+                        break
+                except Exception as e:
+                    print(f"[ERROR] Exception in thread: {e}")
+
+        if not stop_event.is_set():
+            print("[FAILED] Password not found in the wordlist.")
+    except KeyboardInterrupt:
+        stop_event.set()
+        print("\n[INFO] Program interrupted by user. Exiting...")
+    except Exception as e:
+        print(f"[ERROR] An unexpected error occurred: {e}")
 
 def load_passwords(wordlist_path):
     with open(wordlist_path, "r") as file:
